@@ -44,10 +44,44 @@ gk gk_case;
     dbms_output.put_line('Inner '||p_type||' ben '||p_ben);
     return retval;
   END;
+
+  FUNCTION getAddress(p_ben in number) RETURN BOOLEAN IS
+    retval boolean := true;
+  BEGIN
+    BEGIN
+      select ad.adr_elem14 into p_email
+      from address_name_link@xlcm1vad adl 
+      join address_data@xlcm1vad ad on adl.address_id = ad.address_id
+      and adl.entity_id = p_ben
+      and adl.link_type = 'B'
+      and adl.expiration_date is null;
+    exception
+      when no_data_found THEN
+        retval := false;
+    END;
+    RETURN retval;
+  END;
   
   PROCEDURE PROCESS_BEN(p_ben in number, p_case in varchar2) IS
+    v_crd_limit_type varchar2(5);
+    v_crd_limit float;
   BEGIN
-    IF getCreditLimitAndType(p_ben,v_crd_limit_type, v_crd_limit)
+    IF getCreditLimitAndType(p_ben,v_crd_limit_type, v_crd_limit) THEN
+      --evaluate
+      IF v_crd_limit_type = 'PACT' then
+        REGISTER_CASE('Case id', gk);
+      END IF;
+
+      IF v_crd_limit = 0 THEN
+        REGISTER_CASE('case id', gk);
+      END IF;      
+    END IF;
+
+    --cek email address
+    IF getAddress(p_ben) THEN
+      
+    END IF;
+
   END; --PROCESS_BEN
   
 --MAIN PROC
@@ -57,5 +91,6 @@ BEGIN
     
     GET_PRICE_PLAN(CG.SUBSCRIBER_NO, v_soc_pp, v_price_plan);
     dbms_output.put_line(cg.msisdn||' '||v_price_plan);
+    PROCESS_BEN;
   END LOOP;
 END;
